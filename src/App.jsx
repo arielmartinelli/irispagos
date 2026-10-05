@@ -27,21 +27,21 @@ import {
   formatDate 
 } from './utils/storage';
 import { 
-  isFirebaseConfigured, 
-  subscribeToDebts, 
-  subscribeToPayments, 
+  isSupabaseConfigured, 
+  fetchDebtsRemote, 
+  fetchPaymentsRemote, 
   saveDebtRemote, 
   deleteDebtRemote, 
   savePaymentRemote, 
-  deletePaymentRemote 
-} from './utils/firebase';
+  deletePaymentRemote,
+  subscribeToChanges
+} from './utils/supabase';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('summary'); // 'summary' | 'debts' | 'payments' | 'stats'
   const [debts, setDebts] = useState(getStoredDebts);
   const [payments, setPayments] = useState(getStoredPayments);
   const [currentTime, setCurrentTime] = useState('');
-  const [isCloudSync, setIsCloudSync] = useState(isFirebaseConfigured);
 
   // Modals state
   const [isAddDebtOpen, setIsAddDebtOpen] = useState(false);
@@ -76,27 +76,36 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Firebase Realtime Subscriptions (Si están configuradas las keys de Firebase)
+  // Supabase Data Load & Realtime Subscription
   useEffect(() => {
-    if (!isFirebaseConfigured) return;
+    if (!isSupabaseConfigured) return;
 
-    const unsubDebts = subscribeToDebts((remoteDebts) => {
-      if (remoteDebts) {
-        setDebts(remoteDebts);
-        saveStoredDebts(remoteDebts);
+    const loadRemoteData = async () => {
+      try {
+        const [remoteDebts, remotePayments] = await Promise.all([
+          fetchDebtsRemote(),
+          fetchPaymentsRemote()
+        ]);
+        if (remoteDebts) {
+          setDebts(remoteDebts);
+          saveStoredDebts(remoteDebts);
+        }
+        if (remotePayments) {
+          setPayments(remotePayments);
+          saveStoredPayments(remotePayments);
+        }
+      } catch (err) {
+        console.error('Error sincronizando con Supabase:', err);
       }
-    });
+    };
 
-    const unsubPayments = subscribeToPayments((remotePayments) => {
-      if (remotePayments) {
-        setPayments(remotePayments);
-        saveStoredPayments(remotePayments);
-      }
+    loadRemoteData();
+    const unsubscribe = subscribeToChanges(() => {
+      loadRemoteData();
     });
 
     return () => {
-      unsubDebts();
-      unsubPayments();
+      unsubscribe();
     };
   }, []);
 
@@ -117,11 +126,11 @@ export default function App() {
     setDebts(updated);
     saveStoredDebts(updated);
 
-    if (isFirebaseConfigured) {
+    if (isSupabaseConfigured) {
       try {
         await saveDebtRemote(item);
       } catch (err) {
-        console.error('Error guardando en Firebase:', err);
+        console.error('Error guardando en Supabase:', err);
       }
     }
 
@@ -141,11 +150,11 @@ export default function App() {
       setDebts(updated);
       saveStoredDebts(updated);
 
-      if (isFirebaseConfigured) {
+      if (isSupabaseConfigured) {
         try {
           await deleteDebtRemote(id);
         } catch (err) {
-          console.error('Error eliminando en Firebase:', err);
+          console.error('Error eliminando en Supabase:', err);
         }
       }
     }
@@ -166,11 +175,11 @@ export default function App() {
     setPayments(updated);
     saveStoredPayments(updated);
 
-    if (isFirebaseConfigured) {
+    if (isSupabaseConfigured) {
       try {
         await savePaymentRemote(item);
       } catch (err) {
-        console.error('Error guardando en Firebase:', err);
+        console.error('Error guardando en Supabase:', err);
       }
     }
 
@@ -195,11 +204,11 @@ export default function App() {
       setPayments(updated);
       saveStoredPayments(updated);
 
-      if (isFirebaseConfigured) {
+      if (isSupabaseConfigured) {
         try {
           await deletePaymentRemote(id);
         } catch (err) {
-          console.error('Error eliminando en Firebase:', err);
+          console.error('Error eliminando en Supabase:', err);
         }
       }
     }
@@ -259,12 +268,12 @@ export default function App() {
               <h1 className="text-lg font-bold text-zinc-900 tracking-tight">
                 Iris Pagos
               </h1>
-              {isFirebaseConfigured ? (
-                <span className="flex items-center gap-1 text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200" title="Firebase activo">
-                  <Cloud className="w-3 h-3" /> Nube
+              {isSupabaseConfigured ? (
+                <span className="flex items-center gap-1 text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200" title="Supabase sincronizado">
+                  <Cloud className="w-3 h-3" /> Supabase
                 </span>
               ) : (
-                <span className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full" title="Modo local (configura Firebase en .env para nube)">
+                <span className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full" title="Modo local (configura Supabase en .env para nube)">
                   <CloudOff className="w-3 h-3" /> Local
                 </span>
               )}
@@ -615,7 +624,7 @@ export default function App() {
 
         </main>
 
-        {/* iPhone Bottom Navigation Bar (Centered layout, clean light style) */}
+        {/* iPhone Bottom Navigation Bar */}
         <nav className="absolute bottom-0 left-0 right-0 z-40 bg-white/85 backdrop-blur-2xl border-t border-zinc-200/80 px-6 py-2 pb-6 flex justify-around items-center">
           <button
             onClick={() => setActiveTab('summary')}
