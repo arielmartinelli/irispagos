@@ -280,13 +280,13 @@ export default function App() {
       </header>
 
       {/* Main Responsive Container */}
-      <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6 pb-24 sm:pb-8">
+      <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6 pb-28 sm:pb-8">
         
-        {/* Navigation Tabs (Responsive) */}
-        <div className="flex items-center gap-1.5 p-1 bg-zinc-200/60 rounded-2xl w-full sm:w-fit overflow-x-auto">
+        {/* Navigation Tabs (Desktop only, on mobile it uses the bottom fixed bar) */}
+        <div className="hidden sm:flex items-center gap-1.5 p-1 bg-zinc-200/60 rounded-2xl w-fit">
           <button
             onClick={() => setActiveTab('summary')}
-            className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeTab === 'summary' 
                 ? 'bg-white text-zinc-900 shadow-xs' 
                 : 'text-zinc-600 hover:text-zinc-900'
@@ -297,7 +297,7 @@ export default function App() {
           </button>
           <button
             onClick={() => setActiveTab('debts')}
-            className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeTab === 'debts' 
                 ? 'bg-white text-zinc-900 shadow-xs' 
                 : 'text-zinc-600 hover:text-zinc-900'
@@ -308,7 +308,7 @@ export default function App() {
           </button>
           <button
             onClick={() => setActiveTab('payments')}
-            className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeTab === 'payments' 
                 ? 'bg-white text-zinc-900 shadow-xs' 
                 : 'text-zinc-600 hover:text-zinc-900'
@@ -319,7 +319,7 @@ export default function App() {
           </button>
           <button
             onClick={() => setActiveTab('stats')}
-            className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeTab === 'stats' 
                 ? 'bg-white text-zinc-900 shadow-xs' 
                 : 'text-zinc-600 hover:text-zinc-900'
@@ -367,7 +367,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Acciones principales en móvil */}
+              {/* Acciones principales en móvil (balanceadas) */}
               <div className="grid grid-cols-2 gap-3 pt-2 sm:hidden">
                 <button
                   onClick={() => setIsAddPaymentOpen(true)}
@@ -680,23 +680,58 @@ export default function App() {
 
       </main>
 
-      {/* Floating Action Bar for Mobile ONLY */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-lg border-t border-zinc-200/80 px-4 py-3 flex sm:hidden justify-between items-center gap-3">
-        <button
-          onClick={() => setIsAddPaymentOpen(true)}
-          className="flex-1 py-2.5 bg-zinc-900 text-white font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition"
-        >
-          <ArrowDownLeft className="w-4 h-4 text-emerald-400" />
-          Registrar Pago
-        </button>
-        <button
-          onClick={() => setIsAddDebtOpen(true)}
-          className="flex-1 py-2.5 bg-zinc-100 text-zinc-800 font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 border border-zinc-200 active:scale-95 transition"
-        >
-          <Plus className="w-4 h-4 text-zinc-600" />
-          Agregar Monto
-        </button>
-      </div>
+      {/* Barra de navegación inferior móvil con el botón "+" perfectamente centrado */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-zinc-200 px-4 py-2 pb-5 sm:hidden shadow-lg">
+        <div className="grid grid-cols-5 items-center justify-items-center max-w-md mx-auto">
+          {/* Tab 1: Resumen */}
+          <button
+            onClick={() => setActiveTab('summary')}
+            className={`flex flex-col items-center gap-1 transition ${activeTab === 'summary' ? 'text-zinc-900 font-bold' : 'text-zinc-400 hover:text-zinc-600'}`}
+          >
+            <Wallet className="w-5 h-5" />
+            <span className="text-[10px]">Resumen</span>
+          </button>
+
+          {/* Tab 2: Montos */}
+          <button
+            onClick={() => setActiveTab('debts')}
+            className={`flex flex-col items-center gap-1 transition ${activeTab === 'debts' ? 'text-zinc-900 font-bold' : 'text-zinc-400 hover:text-zinc-600'}`}
+          >
+            <Receipt className="w-5 h-5" />
+            <span className="text-[10px]">Montos</span>
+          </button>
+
+          {/* Botón Central "+" para registrar pago (centrado exacto en col 3 de 5) */}
+          <div className="flex items-center justify-center -translate-y-3">
+            <button
+              onClick={() => setIsAddPaymentOpen(true)}
+              className="w-13 h-13 rounded-full bg-zinc-900 text-white flex items-center justify-center shadow-lg active:scale-90 transition cursor-pointer border-4 border-white"
+              title="Registrar Pago"
+              aria-label="Registrar Pago"
+            >
+              <Plus className="w-6 h-6 stroke-[2.5]" />
+            </button>
+          </div>
+
+          {/* Tab 3: Pagos */}
+          <button
+            onClick={() => setActiveTab('payments')}
+            className={`flex flex-col items-center gap-1 transition ${activeTab === 'payments' ? 'text-zinc-900 font-bold' : 'text-zinc-400 hover:text-zinc-600'}`}
+          >
+            <History className="w-5 h-5" />
+            <span className="text-[10px]">Pagos</span>
+          </button>
+
+          {/* Tab 4: Balance */}
+          <button
+            onClick={() => setActiveTab('stats')}
+            className={`flex flex-col items-center gap-1 transition ${activeTab === 'stats' ? 'text-zinc-900 font-bold' : 'text-zinc-400 hover:text-zinc-600'}`}
+          >
+            <PieChart className="w-5 h-5" />
+            <span className="text-[10px]">Balance</span>
+          </button>
+        </div>
+      </nav>
 
       {/* MODAL: AGREGAR MONTO */}
       {isAddDebtOpen && (
