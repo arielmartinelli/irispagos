@@ -34,20 +34,38 @@ export async function fetchDebtsRemote() {
 
 export async function saveDebtRemote(debt) {
   if (!supabase) return null;
+  const payload = {
+    id: debt.id,
+    description: debt.description,
+    amount: debt.amount,
+    date: debt.date,
+    category: debt.category,
+    notes: debt.notes,
+    created_at: debt.created_at,
+    updated_at: debt.updated_at,
+    edit_count: debt.edit_count ?? 0
+  };
+
   const { data, error } = await supabase
     .from('debts')
-    .upsert({
-      id: debt.id,
-      description: debt.description,
-      amount: debt.amount,
-      date: debt.date,
-      category: debt.category,
-      notes: debt.notes
-    })
+    .upsert(payload)
     .select();
 
   if (error) {
     console.error('Error saving debt to Supabase:', error);
+    // Si falla por columnas que aún no existen en supabase, reintentar con las básicas
+    if (error.message?.includes('column') || error.code === '42703') {
+      const basicPayload = {
+        id: debt.id,
+        description: debt.description,
+        amount: debt.amount,
+        date: debt.date,
+        category: debt.category,
+        notes: debt.notes
+      };
+      await supabase.from('debts').upsert(basicPayload);
+      return;
+    }
     throw error;
   }
   return data;
@@ -86,19 +104,36 @@ export async function fetchPaymentsRemote() {
 
 export async function savePaymentRemote(payment) {
   if (!supabase) return null;
+  const payload = {
+    id: payment.id,
+    amount: payment.amount,
+    date: payment.date,
+    method: payment.method,
+    note: payment.note,
+    created_at: payment.created_at,
+    updated_at: payment.updated_at,
+    edit_count: payment.edit_count ?? 0
+  };
+
   const { data, error } = await supabase
     .from('payments')
-    .upsert({
-      id: payment.id,
-      amount: payment.amount,
-      date: payment.date,
-      method: payment.method,
-      note: payment.note
-    })
+    .upsert(payload)
     .select();
 
   if (error) {
     console.error('Error saving payment to Supabase:', error);
+    // Si falla por columnas que aún no existen en supabase, reintentar con las básicas
+    if (error.message?.includes('column') || error.code === '42703') {
+      const basicPayload = {
+        id: payment.id,
+        amount: payment.amount,
+        date: payment.date,
+        method: payment.method,
+        note: payment.note
+      };
+      await supabase.from('payments').upsert(basicPayload);
+      return;
+    }
     throw error;
   }
   return data;

@@ -11,7 +11,10 @@ export const initialDebts = [
     amount: 150000,
     date: '2026-01-15',
     category: 'Préstamo general',
-    notes: 'Primer tramo acordado'
+    notes: 'Primer tramo acordado',
+    created_at: new Date('2026-01-15T12:00:00Z').toISOString(),
+    updated_at: null,
+    edit_count: 0
   },
   {
     id: 'd2',
@@ -19,18 +22,24 @@ export const initialDebts = [
     amount: 35000,
     date: '2026-02-10',
     category: 'Salud',
-    notes: 'Medicamentos'
+    notes: 'Medicamentos',
+    created_at: new Date('2026-02-10T12:00:00Z').toISOString(),
+    updated_at: null,
+    edit_count: 0
   }
 ];
 
 export const initialPayments = [
   {
     id: 'p1',
-    debtId: 'd1', // opcional o general
+    debtId: 'd1',
     amount: 50000,
     date: '2026-02-05',
     method: 'Transferencia bancaria',
-    note: 'Pago cuota febrero'
+    note: 'Pago cuota febrero',
+    created_at: new Date('2026-02-05T12:00:00Z').toISOString(),
+    updated_at: null,
+    edit_count: 0
   }
 ];
 
@@ -80,6 +89,15 @@ export function formatCurrency(amount, currency = 'ARS') {
 
 export function formatDate(dateStr) {
   if (!dateStr) return '';
+  // Si viene en formato ISO timestamp (ej: 2026-10-05T12:30:00.000Z)
+  if (dateStr.includes('T')) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('es-AR', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  }
   const [year, month, day] = dateStr.split('-');
   if (!year || !month || !day) return dateStr;
   const date = new Date(year, month - 1, day);
@@ -87,5 +105,18 @@ export function formatDate(dateStr) {
     day: 'numeric',
     month: 'short',
     year: 'numeric'
+  });
+}
+
+export function formatDateTime(isoStr) {
+  if (!isoStr) return '';
+  const date = new Date(isoStr);
+  if (isNaN(date.getTime())) return isoStr;
+  return date.toLocaleString('es-AR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
   });
 }

@@ -6,13 +6,17 @@ import {
   Receipt, 
   CheckCircle2, 
   Trash2, 
+  Edit3,
   History, 
   Share2, 
   ChevronRight, 
   Wallet, 
   PieChart,
   Cloud,
-  CloudOff
+  CloudOff,
+  Clock,
+  AlertCircle,
+  Lock
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { 
@@ -21,7 +25,8 @@ import {
   getStoredPayments, 
   saveStoredPayments, 
   formatCurrency, 
-  formatDate 
+  formatDate,
+  formatDateTime
 } from './utils/storage';
 import { 
   isSupabaseConfigured, 
@@ -39,11 +44,15 @@ export default function App() {
   const [debts, setDebts] = useState(getStoredDebts);
   const [payments, setPayments] = useState(getStoredPayments);
 
-  // Modals state
+  // Modals state: Crear
   const [isAddDebtOpen, setIsAddDebtOpen] = useState(false);
   const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
 
-  // Form states
+  // Modals state: Editar (1 sola vez permitido)
+  const [editingDebt, setEditingDebt] = useState(null);
+  const [editingPayment, setEditingPayment] = useState(null);
+
+  // Form states: Crear Préstamo
   const [newDebt, setNewDebt] = useState({
     description: '',
     amount: '',
@@ -52,11 +61,27 @@ export default function App() {
     notes: ''
   });
 
+  // Form states: Crear Pago
   const [newPayment, setNewPayment] = useState({
     amount: '',
     date: new Date().toISOString().split('T')[0],
     method: 'Transferencia',
     note: ''
+  });
+
+  // Form states: Editar Préstamo
+  const [editDebtForm, setEditDebtForm] = useState({
+    amount: '',
+    description: '',
+    category: '',
+    notes: ''
+  });
+
+  // Form states: Editar Pago
+  const [editPaymentForm, setEditPaymentForm] = useState({
+    amount: '',
+    note: '',
+    method: ''
   });
 
   // Supabase Data Load & Realtime Subscription
@@ -69,11 +94,11 @@ export default function App() {
           fetchDebtsRemote(),
           fetchPaymentsRemote()
         ]);
-        if (remoteDebts) {
+        if (remoteDebts && remoteDebts.length > 0) {
           setDebts(remoteDebts);
           saveStoredDebts(remoteDebts);
         }
-        if (remotePayments) {
+        if (remotePayments && remotePayments.length > 0) {
           setPayments(remotePayments);
           saveStoredPayments(remotePayments);
         }
@@ -92,17 +117,21 @@ export default function App() {
     };
   }, []);
 
-  // Save changes
+  // Agregar nuevo préstamo
   const handleAddDebt = async (e) => {
     e.preventDefault();
     if (!newDebt.description || !newDebt.amount) return;
+    const nowIso = new Date().toISOString();
     const item = {
       id: 'd_' + Date.now(),
       description: newDebt.description,
       amount: parseFloat(newDebt.amount),
       date: newDebt.date,
       category: newDebt.category || 'General',
-      notes: newDebt.notes || ''
+      notes: newDebt.notes || '',
+      created_at: nowIso,
+      updated_at: null,
+      edit_count: 0
     };
 
     const updated = [item, ...debts];
@@ -127,6 +156,52 @@ export default function App() {
     });
   };
 
+  // Abrir modal de edición de préstamo
+  const openEditDebtModal = (debt) => {
+    if ((debt.edit_count || 0) >= 1) {
+      alert('Este monto ya fue modificado una vez. No se permiten más modificaciones.');
+      return;
+    }
+    setEditingDebt(debt);
+    setEditDebtForm({
+      amount: debt.amount,
+      description: debt.description,
+      category: debt.category || 'General',
+      notes: debt.notes || ''
+    });
+  };
+
+  // Guardar edición de préstamo (consume el único intento)
+  const handleSaveEditDebt = async (e) => {
+    e.preventDefault();
+    if (!editingDebt || !editDebtForm.amount) return;
+
+    const nowIso = new Date().toISOString();
+    const updatedItem = {
+      ...editingDebt,
+      amount: parseFloat(editDebtForm.amount),
+      description: editDebtForm.description,
+      category: editDebtForm.category,
+      notes: editDebtForm.notes,
+      updated_at: nowIso,
+      edit_count: (editingDebt.edit_count || 0) + 1
+    };
+
+    const updated = debts.map(d => d.id === editingDebt.id ? updatedItem : d);
+    setDebts(updated);
+    saveStoredDebts(updated);
+
+    if (isSupabaseConfigured) {
+      try {
+        await saveDebtRemote(updatedItem);
+      } catch (err) {
+        console.error('Error actualizando en Supabase:', err);
+      }
+    }
+
+    setEditingDebt(null);
+  };
+
   const handleDeleteDebt = async (id) => {
     if (confirm('¿Eliminar este registro?')) {
       const updated = debts.filter(d => d.id !== id);
@@ -143,15 +218,20 @@ export default function App() {
     }
   };
 
+  // Agregar nuevo pago
   const handleAddPayment = async (e) => {
     e.preventDefault();
     if (!newPayment.amount) return;
+    const nowIso = new Date().toISOString();
     const item = {
       id: 'p_' + Date.now(),
       amount: parseFloat(newPayment.amount),
       date: newPayment.date,
       method: newPayment.method || 'Transferencia',
-      note: newPayment.note || 'Pago mensual'
+      note: newPayment.note || 'Pago mensual',
+      created_at: nowIso,
+      updated_at: null,
+      edit_count: 0
     };
 
     const updated = [item, ...payments];
@@ -179,6 +259,50 @@ export default function App() {
       spread: 50,
       origin: { y: 0.7 }
     });
+  };
+
+  // Abrir modal de edición de pago
+  const openEditPaymentModal = (payment) => {
+    if ((payment.edit_count || 0) >= 1) {
+      alert('Este pago ya fue modificado una vez. No se permiten más modificaciones.');
+      return;
+    }
+    setEditingPayment(payment);
+    setEditPaymentForm({
+      amount: payment.amount,
+      note: payment.note || '',
+      method: payment.method || 'Transferencia'
+    });
+  };
+
+  // Guardar edición de pago (consume el único intento)
+  const handleSaveEditPayment = async (e) => {
+    e.preventDefault();
+    if (!editingPayment || !editPaymentForm.amount) return;
+
+    const nowIso = new Date().toISOString();
+    const updatedItem = {
+      ...editingPayment,
+      amount: parseFloat(editPaymentForm.amount),
+      note: editPaymentForm.note,
+      method: editPaymentForm.method,
+      updated_at: nowIso,
+      edit_count: (editingPayment.edit_count || 0) + 1
+    };
+
+    const updated = payments.map(p => p.id === editingPayment.id ? updatedItem : p);
+    setPayments(updated);
+    saveStoredPayments(updated);
+
+    if (isSupabaseConfigured) {
+      try {
+        await savePaymentRemote(updatedItem);
+      } catch (err) {
+        console.error('Error actualizando pago en Supabase:', err);
+      }
+    }
+
+    setEditingPayment(null);
   };
 
   const handleDeletePayment = async (id) => {
@@ -282,7 +406,7 @@ export default function App() {
       {/* Main Responsive Container */}
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6 pb-28 sm:pb-8">
         
-        {/* Navigation Tabs (Desktop only, on mobile it uses the bottom fixed bar) */}
+        {/* Navigation Tabs (Desktop only) */}
         <div className="hidden sm:flex items-center gap-1.5 p-1 bg-zinc-200/60 rounded-2xl w-fit">
           <button
             onClick={() => setActiveTab('summary')}
@@ -367,7 +491,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Acciones principales en móvil (balanceadas) */}
+              {/* Acciones principales en móvil */}
               <div className="grid grid-cols-2 gap-3 pt-2 sm:hidden">
                 <button
                   onClick={() => setIsAddPaymentOpen(true)}
@@ -451,6 +575,11 @@ export default function App() {
                         <div>
                           <p className="text-sm font-bold text-zinc-900">{p.note || 'Pago a Iris'}</p>
                           <p className="text-xs text-zinc-500">{formatDate(p.date)} · {p.method}</p>
+                          {p.updated_at && (
+                            <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 inline-block mt-0.5">
+                              Editado
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="text-right">
@@ -496,6 +625,11 @@ export default function App() {
                         <div>
                           <p className="text-sm font-bold text-zinc-900">{d.description}</p>
                           <p className="text-xs text-zinc-500">{formatDate(d.date)} · {d.category}</p>
+                          {d.updated_at && (
+                            <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 inline-block mt-0.5">
+                              Editado
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="text-right">
@@ -533,44 +667,77 @@ export default function App() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                {debts.map((item) => (
-                  <div 
-                    key={item.id}
-                    className="p-5 rounded-2xl bg-white border border-zinc-200/90 shadow-xs space-y-3 flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex justify-between items-start gap-2">
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="text-sm font-bold text-zinc-900">{item.description}</h4>
-                            <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-700 font-medium border border-zinc-200/60">
-                              {item.category}
-                            </span>
+                {debts.map((item) => {
+                  const isModified = Boolean(item.updated_at) || (item.edit_count || 0) >= 1;
+                  return (
+                    <div 
+                      key={item.id}
+                      className="p-5 rounded-2xl bg-white border border-zinc-200/90 shadow-xs space-y-3 flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="flex justify-between items-start gap-2">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="text-sm font-bold text-zinc-900">{item.description}</h4>
+                              <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-700 font-medium border border-zinc-200/60">
+                                {item.category}
+                              </span>
+                            </div>
+                            <p className="text-xs text-zinc-500 mt-1">{formatDate(item.date)}</p>
                           </div>
-                          <p className="text-xs text-zinc-500 mt-1">{formatDate(item.date)}</p>
+                          <div className="text-right">
+                            <p className="text-base font-extrabold text-zinc-900">{formatCurrency(item.amount)}</p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-base font-extrabold text-zinc-900">{formatCurrency(item.amount)}</p>
+
+                        {item.notes && (
+                          <p className="text-xs text-zinc-600 bg-zinc-50 p-2.5 rounded-xl border border-zinc-100 mt-2">
+                            {item.notes}
+                          </p>
+                        )}
+
+                        {/* Bloque de auditoría de fechas de creación y modificación */}
+                        <div className="mt-3 pt-2.5 border-t border-zinc-100 text-[11px] text-zinc-500 space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="w-3 h-3 text-zinc-400" />
+                            <span>Creado: <strong>{formatDateTime(item.created_at || item.date)}</strong></span>
+                          </div>
+                          {item.updated_at ? (
+                            <div className="flex items-center gap-1.5 text-amber-700 bg-amber-50/80 px-2 py-1 rounded-lg border border-amber-200/70">
+                              <AlertCircle className="w-3 h-3 text-amber-600 shrink-0" />
+                              <span>Modificado: <strong>{formatDateTime(item.updated_at)}</strong> (única modificación realizada)</span>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-zinc-400 italic">Sin modificaciones previas</span>
+                          )}
                         </div>
                       </div>
 
-                      {item.notes && (
-                        <p className="text-xs text-zinc-600 bg-zinc-50 p-2.5 rounded-xl border border-zinc-100 mt-2">
-                          {item.notes}
-                        </p>
-                      )}
-                    </div>
+                      {/* Botones de acción */}
+                      <div className="flex items-center justify-between pt-2 border-t border-zinc-100">
+                        {isModified ? (
+                          <span className="text-[11px] text-zinc-400 flex items-center gap-1 font-medium bg-zinc-100 px-2 py-1 rounded-lg">
+                            <Lock className="w-3 h-3" /> Modificación ya usada
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => openEditDebtModal(item)}
+                            className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1 transition cursor-pointer hover:underline"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" /> Modificar monto (1 intento)
+                          </button>
+                        )}
 
-                    <div className="flex justify-end pt-2 border-t border-zinc-100">
-                      <button
-                        onClick={() => handleDeleteDebt(item.id)}
-                        className="text-xs text-rose-500 hover:text-rose-600 font-medium flex items-center gap-1 transition cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" /> Eliminar
-                      </button>
+                        <button
+                          onClick={() => handleDeleteDebt(item.id)}
+                          className="text-xs text-rose-500 hover:text-rose-600 font-medium flex items-center gap-1 transition cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Eliminar
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -598,36 +765,71 @@ export default function App() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                {payments.map((pay) => (
-                  <div 
-                    key={pay.id}
-                    className="p-5 rounded-2xl bg-white border border-zinc-200/90 shadow-xs space-y-3 flex flex-col justify-between"
-                  >
-                    <div className="flex justify-between items-start gap-2">
+                {payments.map((pay) => {
+                  const isModified = Boolean(pay.updated_at) || (pay.edit_count || 0) >= 1;
+                  return (
+                    <div 
+                      key={pay.id}
+                      className="p-5 rounded-2xl bg-white border border-zinc-200/90 shadow-xs space-y-3 flex flex-col justify-between"
+                    >
                       <div>
-                        <h4 className="text-sm font-bold text-zinc-900">{pay.note || 'Pago'}</h4>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-zinc-500">{formatDate(pay.date)}</span>
-                          <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium border border-emerald-200">
-                            {pay.method}
-                          </span>
+                        <div className="flex justify-between items-start gap-2">
+                          <div>
+                            <h4 className="text-sm font-bold text-zinc-900">{pay.note || 'Pago'}</h4>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-zinc-500">{formatDate(pay.date)}</span>
+                              <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium border border-emerald-200">
+                                {pay.method}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-base font-extrabold text-emerald-600">-{formatCurrency(pay.amount)}</p>
+                          </div>
+                        </div>
+
+                        {/* Bloque de auditoría de fechas de creación y modificación */}
+                        <div className="mt-3 pt-2.5 border-t border-zinc-100 text-[11px] text-zinc-500 space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="w-3 h-3 text-zinc-400" />
+                            <span>Creado: <strong>{formatDateTime(pay.created_at || pay.date)}</strong></span>
+                          </div>
+                          {pay.updated_at ? (
+                            <div className="flex items-center gap-1.5 text-amber-700 bg-amber-50/80 px-2 py-1 rounded-lg border border-amber-200/70">
+                              <AlertCircle className="w-3 h-3 text-amber-600 shrink-0" />
+                              <span>Modificado: <strong>{formatDateTime(pay.updated_at)}</strong> (única modificación realizada)</span>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-zinc-400 italic">Sin modificaciones previas</span>
+                          )}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-base font-extrabold text-emerald-600">-{formatCurrency(pay.amount)}</p>
+
+                      {/* Botones de acción */}
+                      <div className="flex items-center justify-between pt-2 border-t border-zinc-100">
+                        {isModified ? (
+                          <span className="text-[11px] text-zinc-400 flex items-center gap-1 font-medium bg-zinc-100 px-2 py-1 rounded-lg">
+                            <Lock className="w-3 h-3" /> Modificación ya usada
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => openEditPaymentModal(pay)}
+                            className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1 transition cursor-pointer hover:underline"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" /> Modificar monto (1 intento)
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => handleDeletePayment(pay.id)}
+                          className="text-xs text-rose-500 hover:text-rose-600 font-medium flex items-center gap-1 transition cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Eliminar
+                        </button>
                       </div>
                     </div>
-
-                    <div className="flex justify-end pt-2 border-t border-zinc-100">
-                      <button
-                        onClick={() => handleDeletePayment(pay.id)}
-                        className="text-xs text-rose-500 hover:text-rose-600 font-medium flex items-center gap-1 transition cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" /> Eliminar
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -701,7 +903,7 @@ export default function App() {
             <span className="text-[10px]">Montos</span>
           </button>
 
-          {/* Botón Central "+" para registrar pago (centrado exacto en col 3 de 5) */}
+          {/* Botón Central "+" para registrar pago */}
           <div className="flex items-center justify-center -translate-y-3">
             <button
               onClick={() => setIsAddPaymentOpen(true)}
@@ -733,7 +935,7 @@ export default function App() {
         </div>
       </nav>
 
-      {/* MODAL: AGREGAR MONTO */}
+      {/* MODAL: AGREGAR MONTO PRESTADO */}
       {isAddDebtOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
           <div className="w-full max-w-md bg-white border border-zinc-200 rounded-3xl p-6 space-y-4 shadow-xl">
@@ -827,7 +1029,90 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL: REGISTRAR PAGO */}
+      {/* MODAL: EDITAR MONTO PRESTADO (1 sola vez) */}
+      {editingDebt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white border border-zinc-200 rounded-3xl p-6 space-y-4 shadow-xl">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-base font-bold text-zinc-900">
+                  Modificar Monto de Préstamo
+                </h3>
+                <p className="text-xs text-amber-600 font-medium">⚠️ Solo podés modificarlo una única vez.</p>
+              </div>
+              <button 
+                onClick={() => setEditingDebt(null)}
+                className="text-zinc-400 hover:text-zinc-700 text-xs px-2 py-1 rounded-lg hover:bg-zinc-100"
+              >
+                Cancelar
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditDebt} className="space-y-3.5">
+              <div>
+                <label className="text-xs text-zinc-600 font-semibold">Monto ($)</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={editDebtForm.amount}
+                  onChange={(e) => setEditDebtForm({ ...editDebtForm, amount: e.target.value })}
+                  required
+                  autoFocus
+                  className="w-full mt-1.5 bg-zinc-50 border border-zinc-200 rounded-xl px-3.5 py-2.5 text-base font-bold text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-zinc-600 font-semibold">Concepto / Motivo</label>
+                <input
+                  type="text"
+                  value={editDebtForm.description}
+                  onChange={(e) => setEditDebtForm({ ...editDebtForm, description: e.target.value })}
+                  required
+                  className="w-full mt-1.5 bg-zinc-50 border border-zinc-200 rounded-xl px-3.5 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-zinc-600 font-semibold">Categoría</label>
+                <select
+                  value={editDebtForm.category}
+                  onChange={(e) => setEditDebtForm({ ...editDebtForm, category: e.target.value })}
+                  className="w-full mt-1.5 bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 text-sm text-zinc-900 focus:outline-none focus:border-zinc-500"
+                >
+                  <option value="General">General / Efectivo</option>
+                  <option value="Servicios">Servicios / Facturas</option>
+                  <option value="Salud">Salud / Farmacia</option>
+                  <option value="Supermercado">Compras / Comida</option>
+                  <option value="Vehículo">Auto / Transporte</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs text-zinc-600 font-semibold">Notas</label>
+                <input
+                  type="text"
+                  value={editDebtForm.notes}
+                  onChange={(e) => setEditDebtForm({ ...editDebtForm, notes: e.target.value })}
+                  className="w-full mt-1.5 bg-zinc-50 border border-zinc-200 rounded-xl px-3.5 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-500"
+                />
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl active:scale-98 transition cursor-pointer shadow-sm"
+                >
+                  Guardar Modificación Definitiva
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: REGISTRAR PAGO NUEVO */}
       {isAddPaymentOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
           <div className="w-full max-w-md bg-white border border-zinc-200 rounded-3xl p-6 space-y-4 shadow-xl">
@@ -901,6 +1186,76 @@ export default function App() {
                   className="w-full py-3 bg-zinc-900 hover:bg-zinc-800 text-white font-semibold text-sm rounded-xl active:scale-98 transition cursor-pointer"
                 >
                   Confirmar y Descontar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDITAR PAGO (1 sola vez) */}
+      {editingPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white border border-zinc-200 rounded-3xl p-6 space-y-4 shadow-xl">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-base font-bold text-zinc-900">
+                  Modificar Pago Realizado
+                </h3>
+                <p className="text-xs text-amber-600 font-medium">⚠️ Solo podés modificarlo una única vez.</p>
+              </div>
+              <button 
+                onClick={() => setEditingPayment(null)}
+                className="text-zinc-400 hover:text-zinc-700 text-xs px-2 py-1 rounded-lg hover:bg-zinc-100"
+              >
+                Cancelar
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditPayment} className="space-y-3.5">
+              <div>
+                <label className="text-xs text-zinc-600 font-semibold">Monto Pagado ($)</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={editPaymentForm.amount}
+                  onChange={(e) => setEditPaymentForm({ ...editPaymentForm, amount: e.target.value })}
+                  required
+                  autoFocus
+                  className="w-full mt-1.5 bg-zinc-50 border border-zinc-200 rounded-xl px-3.5 py-2.5 text-lg font-bold text-emerald-600 placeholder-zinc-400 focus:outline-none focus:border-zinc-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-zinc-600 font-semibold">Medio de Pago</label>
+                <select
+                  value={editPaymentForm.method}
+                  onChange={(e) => setEditPaymentForm({ ...editPaymentForm, method: e.target.value })}
+                  className="w-full mt-1.5 bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 text-sm text-zinc-900 focus:outline-none focus:border-zinc-500"
+                >
+                  <option value="Transferencia">Transferencia</option>
+                  <option value="Efectivo">Efectivo</option>
+                  <option value="Mercado Pago">Mercado Pago</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs text-zinc-600 font-semibold">Nota / Detalle</label>
+                <input
+                  type="text"
+                  value={editPaymentForm.note}
+                  onChange={(e) => setEditPaymentForm({ ...editPaymentForm, note: e.target.value })}
+                  className="w-full mt-1.5 bg-zinc-50 border border-zinc-200 rounded-xl px-3.5 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-500"
+                />
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl active:scale-98 transition cursor-pointer shadow-sm"
+                >
+                  Guardar Modificación Definitiva
                 </button>
               </div>
             </form>
