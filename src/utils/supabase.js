@@ -29,13 +29,17 @@ export async function fetchDebtsRemote() {
     console.error('Error fetching debts from Supabase:', error);
     return [];
   }
-  return data || [];
+  return (data || []).map(d => ({
+    ...d,
+    person: d.person || 'Iris'
+  }));
 }
 
 export async function saveDebtRemote(debt) {
   if (!supabase) return null;
   const payload = {
     id: debt.id,
+    person: debt.person || 'Iris',
     description: debt.description,
     amount: debt.amount,
     date: debt.date,
@@ -53,7 +57,7 @@ export async function saveDebtRemote(debt) {
 
   if (error) {
     console.error('Error saving debt to Supabase:', error);
-    // Si falla por columnas que aún no existen en supabase, reintentar con las básicas
+    // Fallback si la columna person o alguna otra aún no existe en supabase
     if (error.message?.includes('column') || error.code === '42703') {
       const basicPayload = {
         id: debt.id,
@@ -99,13 +103,17 @@ export async function fetchPaymentsRemote() {
     console.error('Error fetching payments from Supabase:', error);
     return [];
   }
-  return data || [];
+  return (data || []).map(p => ({
+    ...p,
+    person: p.person || 'Iris'
+  }));
 }
 
 export async function savePaymentRemote(payment) {
   if (!supabase) return null;
   const payload = {
     id: payment.id,
+    person: payment.person || 'Iris',
     amount: payment.amount,
     date: payment.date,
     method: payment.method,
@@ -122,7 +130,7 @@ export async function savePaymentRemote(payment) {
 
   if (error) {
     console.error('Error saving payment to Supabase:', error);
-    // Si falla por columnas que aún no existen en supabase, reintentar con las básicas
+    // Fallback si la columna person aún no existe en supabase
     if (error.message?.includes('column') || error.code === '42703') {
       const basicPayload = {
         id: payment.id,

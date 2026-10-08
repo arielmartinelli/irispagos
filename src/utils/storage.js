@@ -2,11 +2,17 @@
 
 const DEBTS_KEY = 'iris_debts_v1';
 const PAYMENTS_KEY = 'iris_payments_v1';
+const PERSONS_KEY = 'iris_persons_v1';
 const SETTINGS_KEY = 'iris_settings_v1';
+
+export const initialPersons = [
+  'Iris'
+];
 
 export const initialDebts = [
   {
     id: 'd1',
+    person: 'Iris',
     description: 'Préstamo inicial acordado',
     amount: 150000,
     date: '2026-01-15',
@@ -18,6 +24,7 @@ export const initialDebts = [
   },
   {
     id: 'd2',
+    person: 'Iris',
     description: 'Gasto médico / farmacia',
     amount: 35000,
     date: '2026-02-10',
@@ -32,6 +39,7 @@ export const initialDebts = [
 export const initialPayments = [
   {
     id: 'p1',
+    person: 'Iris',
     debtId: 'd1',
     amount: 50000,
     date: '2026-02-05',
@@ -43,10 +51,30 @@ export const initialPayments = [
   }
 ];
 
+export function getStoredPersons() {
+  try {
+    const data = localStorage.getItem(PERSONS_KEY);
+    return data ? JSON.parse(data) : initialPersons;
+  } catch (e) {
+    console.error('Error reading persons', e);
+    return initialPersons;
+  }
+}
+
+export function saveStoredPersons(persons) {
+  try {
+    localStorage.setItem(PERSONS_KEY, JSON.stringify(persons));
+  } catch (e) {
+    console.error('Error saving persons', e);
+  }
+}
+
 export function getStoredDebts() {
   try {
     const data = localStorage.getItem(DEBTS_KEY);
-    return data ? JSON.parse(data) : initialDebts;
+    const parsed = data ? JSON.parse(data) : initialDebts;
+    // Asegurar que cada deuda tenga person (por defecto Iris si no tiene)
+    return parsed.map(d => ({ ...d, person: d.person || 'Iris' }));
   } catch (e) {
     console.error('Error reading debts', e);
     return initialDebts;
@@ -64,7 +92,9 @@ export function saveStoredDebts(debts) {
 export function getStoredPayments() {
   try {
     const data = localStorage.getItem(PAYMENTS_KEY);
-    return data ? JSON.parse(data) : initialPayments;
+    const parsed = data ? JSON.parse(data) : initialPayments;
+    // Asegurar que cada pago tenga person (por defecto Iris si no tiene)
+    return parsed.map(p => ({ ...p, person: p.person || 'Iris' }));
   } catch (e) {
     console.error('Error reading payments', e);
     return initialPayments;
@@ -89,7 +119,6 @@ export function formatCurrency(amount, currency = 'ARS') {
 
 export function formatDate(dateStr) {
   if (!dateStr) return '';
-  // Si viene en formato ISO timestamp (ej: 2026-10-05T12:30:00.000Z)
   if (dateStr.includes('T')) {
     const date = new Date(dateStr);
     return date.toLocaleDateString('es-AR', {
