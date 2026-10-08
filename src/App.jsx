@@ -452,8 +452,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#f8f9fc] text-zinc-900 flex flex-col antialiased">
-      {/* Top Header / App Bar */}
-      <header className="sticky top-0 z-30 bg-white/85 backdrop-blur-md border-b border-zinc-200/80 px-4 sm:px-8 py-3.5 shadow-xs">
+      {/* Top Header / App Bar with iOS Safe Area support */}
+      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-zinc-200/80 px-4 sm:px-8 py-3.5 safe-top-header shadow-xs">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img 
@@ -1230,8 +1230,8 @@ export default function App() {
 
       </main>
 
-      {/* Barra de navegación inferior móvil con el botón "+" perfectamente centrado */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-zinc-200 px-4 py-2 pb-5 sm:hidden shadow-lg">
+      {/* Barra de navegación inferior móvil con el botón "+" perfectamente centrado y soporte para safe area de iOS */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-zinc-200 px-4 py-2 safe-bottom-nav sm:hidden shadow-lg">
         <div className="grid grid-cols-5 items-center justify-items-center max-w-md mx-auto">
           {/* Tab 1: Resumen */}
           <button

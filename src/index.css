@@ -2,7 +2,7 @@
 
 @layer base {
   body {
-    background-color: #f2f3f7;
+    background-color: #f8f9fc;
     color: #1c1c1e;
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -13,21 +13,13 @@
   }
 }
 
-/* Glassmorphism en tono claro iOS */
-.glass-panel-light {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(25px);
-  -webkit-backdrop-filter: blur(25px);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+/* Soporte para iPhone Notch / Dynamic Island / Barra superior e inferior */
+.safe-top-header {
+  padding-top: max(0.875rem, env(safe-area-inset-top));
 }
 
-.glass-card-light {
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+.safe-bottom-nav {
+  padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
 }
 
 .ios-tap-active:active {
