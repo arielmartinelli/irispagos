@@ -3,12 +3,33 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#f2f3f7" />
+    <title>Iris Pagos | Control de Préstamos y Pagos</title>
+    
+    <!-- Metas para Pantalla de Inicio en iPhone / iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <title>Iris Pagos</title>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Iris Pagos" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-startup-image" href="/apple-touch-icon.png" />
+
+    <!-- Iconos y Manifest PWA -->
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#f8f9fc" />
+
+    <!-- Metadatos de Miniatura para Redes y Enlaces (WhatsApp, Twitter, Open Graph) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Iris Pagos - Control de Deudas y Pagos" />
+    <meta property="og:description" content="Seguimiento claro y sincronizado de préstamos, cuotas y pagos por persona." />
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="/og-image.png" />
   </head>
-  <body class="bg-[#f2f3f7] text-[#1c1c1e]">
+  <body class="bg-[#f8f9fc] text-[#1c1c1e]">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
